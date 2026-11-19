@@ -1,6 +1,7 @@
 # Team-Tree
 
-3D-printed Christmas tree with 12 WS2812B LEDs driven by an ESP32-C3 Super Mini.
+3D-printed Christmas tree with 15 WS2812B LEDs (144 LEDs/m strip) driven by an
+ESP32-C3 Super Mini.
 All trees subscribe to the same retained MQTT message (EMQX Cloud Serverless),
 so they always show the same colours and animations - in lock-step, thanks to
 NTP-synced, time-based effects.

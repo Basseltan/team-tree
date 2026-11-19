@@ -7,7 +7,7 @@ const CONFIG = {
   username: 'remote',
   topicState: 'team-tree/state',
   topicStatusPrefix: 'team-tree/status/',
-  numLeds: 12,
+  numLeds: 15,  // must match kNumLeds in include/Config.h
   sendDelayMs: 300,
   // Disconnect when the app is in the background so idle tabs do not eat
   // into the broker's free session minutes.

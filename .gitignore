@@ -7,3 +7,9 @@
 
 # Broker credentials
 include/secrets.h
+
+# Third-party model files (license may not allow redistribution)
+cad/reference/
+
+# Local slicer exports (contain local paths)
+cad/*.pdf

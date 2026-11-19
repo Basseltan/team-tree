@@ -1,6 +1,6 @@
 // Minimal offline shell: serve cached files immediately and refresh the cache
 // in the background (stale-while-revalidate). Bump CACHE to force an update.
-const CACHE = 'team-tree-v1';
+const CACHE = 'team-tree-v2';
 const ASSETS = [
   './',
   './index.html',

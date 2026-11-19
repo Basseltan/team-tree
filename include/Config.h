@@ -3,12 +3,12 @@
 
 #include <stdint.h>
 
-#define FW_VERSION "1.0.0"
+#define FW_VERSION "1.1.0"
 
-constexpr uint16_t kNumLeds = 12;
+constexpr uint16_t kNumLeds = 15;
 
-// Hard current cap for the LED strip (USB powered). 12 LEDs at full white
-// would draw ~720 mA; FastLED scales brightness down to stay below this.
+// Hard current cap for the LED strip (USB powered). 15 LEDs at full white
+// would draw ~900 mA; FastLED scales brightness down to stay below this.
 constexpr uint32_t kMaxMilliamps = 400;
 
 constexpr uint32_t kFrameIntervalMs = 20;  // 50 fps
