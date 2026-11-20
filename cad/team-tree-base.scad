@@ -74,10 +74,9 @@ num_leds    = 15;    // must match kNumLeds in include/Config.h
 strip_w     = 12;
 strip_len   = num_leds * 1000 / 144;   // 15 LEDs at 144/m = 104.2
 strip_start = 30;    // bottom end of the strip (DIN) above the post bottom
-// Twist of the blade over the strip length. 180 deg: the LEDs at the bottom
-// face one side, the middle ones the front, the top ones the other side.
-// More twist stretches the strip edges too much; 0 = straight.
-strip_twist = 180;
+// Twist of the blade over the strip length. 0 = straight, all LEDs face the
+// front (+x). The test print showed the strip doesn't take a twist well.
+strip_twist = 0;
 blade_w     = strip_w + 2;
 blade_t     = 3.5;
 groove_d    = 0.6;   // shallow groove that keeps the strip centred
