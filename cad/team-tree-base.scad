@@ -4,8 +4,13 @@
 //
 // Parts (select with -D 'part="..."'):
 //   base     - foot with upside-down ESP32-C3 Super Mini, USB-C at the back,
-//              BOOT pressed from below through a flexure tongue
-//   post     - hollow post, 12 WS2812B (144/m strip, 12 mm) wound as a helix
+//              BOOT / RST pressed from below with a ballpoint refill
+//   post     - round foot + twisted blade carrying the WS2812B strip
+//              (144/m, 12 mm). A 12 mm strip cannot be wound as a helix
+//              around a thin post (it would have to bend across its width),
+//              but it twists easily along its length.
+//   collar_test - only the ledge + collar of the base, to check the fit
+//                 in the shade before printing the whole base
 //   assembly - preview with a dummy board and the post in place
 //
 // All dimensions in mm. Print base and post upright, no supports.
@@ -26,7 +31,13 @@ tree_wall   = 0.5;    // vase-mode line width
 base_d      = 2 * (tree_r + 0.1);  // flush with the shade
 ledge_z     = 18;     // height of the ledge the tree stands on
 collar_h    = 6;      // centring collar reaching into the tree (band is 9 mm)
-collar_ro   = tree_valley_r - tree_wall - 0.3;  // slip fit inside the wall
+// Conical collar: the shade slides on until it wedges. A cylindrical slip fit
+// (r 33.53) turned out far too loose, so the cone starts with a little
+// interference at the ledge (the 0.5 mm vase wall flexes) and covers inner
+// radii from collar_r_top to collar_r_bot.
+collar_r_bot = tree_valley_r - tree_wall + 0.25;  // 34.08 at the ledge
+collar_r_top = collar_r_bot - 1.2;                // 32.88 at the top
+collar_ro   = collar_r_top;
 collar_wall = 2;
 
 /* ---------- Base ---------- */
@@ -53,20 +64,25 @@ rst_from_usb   = 8.70;
 // presses BOOT permanently would put the ESP into download mode.
 btn_h   = 2.2;
 antenna_w = 7.0;   // ceramic antenna (6.6 mm) centred on the front edge, keep clear
+press_d = 3.0;     // press holes for a ballpoint refill (refills are ~2.3-2.5 mm)
 
 /* ---------- LED post ---------- */
-post_od     = 16;
+post_od     = 16;    // round foot, sits in the socket
 post_id     = 11.6;
 post_x      = 4;     // offset towards the front (board is at the back)
 num_leds    = 15;    // must match kNumLeds in include/Config.h
 strip_w     = 12;
 strip_len   = num_leds * 1000 / 144;   // 15 LEDs at 144/m = 104.2
-groove_d    = 0.8;
+strip_start = 30;    // bottom end of the strip (DIN) above the post bottom
+// Twist of the blade over the strip length. 180 deg: the LEDs at the bottom
+// face one side, the middle ones the front, the top ones the other side.
+// More twist stretches the strip edges too much; 0 = straight.
+strip_twist = 180;
+blade_w     = strip_w + 2;
+blade_t     = 3.5;
+groove_d    = 0.6;   // shallow groove that keeps the strip centred
 groove_w    = strip_w + 0.6;
-helix_start = 24;    // above the post bottom (just above the base collar)
-// Top ends 134 mm above the shade's bottom edge; up there the shade still
-// leaves >= 2 mm around post + LEDs (the post is off-centre by post_x).
-post_len    = 150;
+post_len    = strip_start + strip_len + 3;
 
 /* ---------- Derived ---------- */
 R      = base_d / 2;
@@ -85,17 +101,10 @@ function btn_pos(from_left, from_usb) = [pcb_x0 + from_usb, pcb_w / 2 - from_lef
 boot_xy = btn_pos(boot_from_left, boot_from_usb);
 rst_xy  = btn_pos(rst_from_left, rst_from_usb);
 
-groove_r = post_od / 2 - groove_d;
-helix_c  = 2 * PI * groove_r;
-helix_p  = sqrt(strip_len * strip_len - helix_c * helix_c);  // rise per turn (one turn)
-helix_a  = atan(helix_p / helix_c);                           // slope angle
-band_deg = (groove_w / sin(helix_a)) / groove_r * 180 / PI;   // horizontal sector
-band_h   = helix_p + groove_w / cos(helix_a);
-
 $fn = 120;
 eps = 0.01;
 
-echo(str("helix rise per turn = ", helix_p, " mm, slope = ", helix_a, " deg"));
+echo(str("post length = ", post_len, " mm, strip ", strip_len, " mm"));
 echo(str("total height with collar = ", ledge_z + collar_h, " mm"));
 
 /* ======================= Base ======================= */
@@ -111,8 +120,8 @@ module base_body() {
   chamfered_cyl(R, ledge_z, chamfer);
   // collar with lead-in chamfer
   translate([0, 0, ledge_z - eps]) hull() {
-    cylinder(r = collar_ro, h = collar_h - 1 + eps);
-    cylinder(r = collar_ro - 1, h = collar_h + eps);
+    cylinder(r1 = collar_r_bot, r2 = collar_r_top, h = collar_h - 0.6 + eps);
+    cylinder(r = collar_r_top - 0.6, h = collar_h + eps);
   }
 }
 
@@ -145,9 +154,10 @@ module board_holder() {
   rail_t = 1.2;
   // support under the USB receptacle (short, keeps the BOOT tongue free)
   translate([usb_mouth_x, -usb_w / 2, 0]) cube([usb_overhang + 3.5, usb_w, usb_zc - usb_h / 2]);
-  // supports under the front corners, clear of the ceramic antenna
+  // supports under the front corners, clear of the ceramic antenna and of
+  // the latch slot in the floor
   for (s = [-1, 1])
-    translate([pcb_x1 - 1.6, s > 0 ? antenna_w / 2 + 1 : -pcb_w / 2 + 0.3, 0])
+    translate([pcb_x1 - 2.2, s > 0 ? antenna_w / 2 + 1 : -pcb_w / 2 + 0.3, 0])
       cube([1.6, pcb_w / 2 - 0.3 - antenna_w / 2 - 1, pcb_bot]);
   // side rails
   for (s = [-1, 1])
@@ -164,37 +174,36 @@ module board_holder() {
   for (s = [-1, 1])
     translate([pcb_x0 - 1.5, s > 0 ? tab_y0 : -tab_y1, 0])
       cube([1.1, tab_y1 - tab_y0, pcb_top + 1.55]);
-  // flexible snap hook at the front edge
-  hook_t = 1.2;
-  translate([pcb_x1 + 0.15, -3, 0]) {
-    cube([hook_t, 6, pcb_top + 1.6]);
-    // hook nose with lead-in
-    translate([0, 0, pcb_top + 0.15]) hull() {
-      cube([eps, 6, 1.4]);
-      translate([-0.8, 0, 0]) cube([0.8 + eps, 6, 0.4]);
-    }
+  // guide tubes for the press holes (stop below the buttons)
+  for (b = [boot_xy, rst_xy])
+    translate([b[0], b[1], 0]) cylinder(d = press_d + 2, h = pcb_bot - btn_h - 0.8, $fn = 32);
+}
+
+// Front latch: a vertical snap hook bends across the print layers and broke.
+// This arm stands on the build plate and is only anchored at one end, so it
+// flexes sideways, i.e. along the layer lines, which PLA tolerates well.
+latch_t   = 1.0;
+latch_y0  = -pcb_w / 2 + 1.5;   // anchored end
+latch_len = 13;
+latch_x   = pcb_x1 + 0.15;
+latch_h   = pcb_top + 1.55;
+
+module front_latch() {
+  // anchor pillar
+  translate([latch_x, latch_y0 - 2, 0]) cube([latch_t + 1.5, 2, latch_h]);
+  // arm
+  translate([latch_x, latch_y0 - eps, 0]) cube([latch_t, latch_len + eps, latch_h]);
+  // nose over the PCB with lead-in, on the free part of the arm
+  translate([latch_x, latch_y0 + 4, pcb_top + 0.15]) hull() {
+    cube([eps, latch_len - 4, 1.4]);
+    translate([-0.8, 0, 0]) cube([0.8 + eps, latch_len - 4, 0.4]);
   }
 }
 
-tongue_w = 6;
-tongue_l = 11;
-tongue_t = 1.2;
-slot     = 0.7;
-
-module tongue_cut(xy) {
-  // U-shaped slot; the tongue's root is towards the front (+x)
-  translate([xy[0] - 3, xy[1], -eps]) difference() {
-    translate([-slot, -tongue_w / 2 - slot, 0]) cube([tongue_l + slot, tongue_w + 2 * slot, floor_t + 1]);
-    translate([0, -tongue_w / 2, -1]) cube([tongue_l + 1, tongue_w, floor_t + 3]);
-  }
-  // thin the tongue from below (also keeps the table from pressing it)
-  translate([xy[0] - 3 - slot - 1, xy[1] - tongue_w / 2 - slot - 1, -eps])
-    cube([tongue_l + slot + 2, tongue_w + 2 * slot + 2, floor_t - tongue_t]);
-}
-
-module tongue_nub(xy) {
-  translate([xy[0], xy[1], floor_t - eps])
-    cylinder(d1 = 3.2, d2 = 2.4, h = pcb_bot - btn_h - 0.3 - floor_t, $fn = 32);
+module latch_slot() {
+  // frees the arm from the floor; room for 0.8 mm deflection to the front
+  translate([latch_x - 0.6, latch_y0, -1])
+    cube([latch_t + 0.6 + 1.2, latch_len + 0.8, floor_t + 1 + eps]);
 }
 
 module post_socket() {
@@ -208,10 +217,10 @@ module post_socket() {
 
 module labels() {
   // engraved underneath (mirrored so it reads correctly from below)
-  translate([boot_xy[0] + tongue_l / 2 - 3, boot_xy[1] + tongue_w / 2 + 3.5, -eps])
+  translate([boot_xy[0], boot_xy[1] + 5, -eps])
     linear_extrude(0.5) mirror([0, 1, 0])
       text("BOOT", size = 3, halign = "center", valign = "center", font = "Liberation Sans:style=Bold");
-  translate([rst_xy[0], rst_xy[1] - 4.5, -eps])
+  translate([rst_xy[0], rst_xy[1] - 4.8, -eps])
     linear_extrude(0.5) mirror([0, 1, 0])
       text("RST", size = 2.5, halign = "center", valign = "center", font = "Liberation Sans:style=Bold");
   translate([14, 0, -eps])
@@ -231,38 +240,52 @@ module base() {
         cylinder(r = R - 0.8, h = ledge_z);
         union() { board_holder(); post_socket(); }
       }
-      tongue_nub(boot_xy);
     }
-    tongue_cut(boot_xy);
-    translate([rst_xy[0], rst_xy[1], -1]) cylinder(d = 2.0, h = floor_t + 2, $fn = 24);  // paper clip
+    latch_slot();
+    for (b = [boot_xy, rst_xy])  // press holes for a ballpoint refill
+      translate([b[0], b[1], -1]) cylinder(d = press_d, h = 20, $fn = 32);
     labels();
+  }
+  front_latch();
+}
+
+module collar_test() {
+  // ledge + collar only (~10 min print) to check the fit in the shade
+  translate([0, 0, -(ledge_z - 2)]) intersection() {
+    base();
+    translate([0, 0, ledge_z - 2]) cylinder(r = R + 1, h = collar_h + 3);
   }
 }
 
 /* ======================= LED post ======================= */
 
-module helix_band() {
-  translate([0, 0, helix_start])
-    linear_extrude(height = band_h, twist = -360 * band_h / helix_p, slices = 200, convexity = 4)
-      difference() {
-        // sector of band_deg
-        polygon(concat([[0, 0]], [for (a = [0 : band_deg / 24 : band_deg]) (post_od) * [cos(a), sin(a)]]));
-        circle(r = groove_r);
-      }
+module blade_profile() {
+  // groove for the strip on the +x face
+  difference() {
+    square([blade_t, blade_w], center = true);
+    translate([blade_t / 2 - groove_d, -groove_w / 2]) square([groove_d + 1, groove_w]);
+  }
 }
 
 module post() {
+  // round, hollow foot; the wires run down inside it
   difference() {
-    cylinder(d = post_od, h = post_len);
-    translate([0, 0, -eps]) cylinder(d = post_id, h = post_len + 2 * eps);
-    helix_band();
-    // wire entry at the bottom end of the strip (DIN)
-    translate([0, 0, helix_start + 4]) rotate([0, 0, band_deg / 2]) rotate([0, 90, 0])
-      cylinder(d = 4.5, h = post_od, $fn = 24);
+    cylinder(d = post_od, h = strip_start);
+    translate([0, 0, -eps]) cylinder(d = post_id, h = strip_start - 2);
+    // wire entry next to the strip's bottom end (DIN), in front of the blade
+    rotate([0, 0, strip_twist / 2]) translate([blade_t / 2 + 2.6, 0, strip_start - 4])
+      cylinder(d = 4, h = 5, $fn = 24);
     // wire exit at the bottom, aligned with the socket slot (-x)
     translate([-post_od, -3, -eps]) cube([post_od, 6, 6]);
   }
-  // arrow on the post: strip runs bottom -> top (DIN at the bottom)
+  // twisted blade: the middle of the strip faces the front (+x)
+  translate([0, 0, strip_start - eps])
+    rotate([0, 0, strip_twist / 2])
+      linear_extrude(height = strip_len + 2 * eps, twist = strip_twist, slices = 120, convexity = 4)
+        blade_profile();
+  // short straight end above the strip
+  translate([0, 0, strip_start + strip_len])
+    rotate([0, 0, -strip_twist / 2]) linear_extrude(height = 3) blade_profile();
 }
 
 /* ======================= Preview ======================= */
@@ -276,6 +299,7 @@ module dummy_board() {
 
 if (part == "base") base();
 else if (part == "post") post();
+else if (part == "collar_test") collar_test();
 else if (part == "section") {  // cut through the BOOT button, for checking
   difference() {
     union() { color("WhiteSmoke") base(); dummy_board(); }
